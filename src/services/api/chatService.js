@@ -1,204 +1,316 @@
-import chatMessagesData from '@/services/mockData/chatMessages.json';
-
 class ChatService {
-constructor() {
-    this.messages = [...chatMessagesData];
-    this.reactions = [];
-    this.threads = [];
-    this.channels = [
-      { Id: 1, name: 'Team Chat', type: 'team', projectId: null, createdAt: new Date().toISOString(), memberCount: 5 },
-      { Id: 2, name: 'E-commerce Platform', type: 'project', projectId: 1, createdAt: new Date().toISOString(), memberCount: 3 },
-      { Id: 3, name: 'Mobile App Dev', type: 'project', projectId: 2, createdAt: new Date().toISOString(), memberCount: 2 },
-      { Id: 4, name: 'Marketing Website', type: 'project', projectId: 3, createdAt: new Date().toISOString(), memberCount: 2 }
-    ];
-    this.nextChannelId = 5;
-  }
-
-  // Simulate network delay
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  constructor() {
+    // Initialize ApperClient with Project ID and Public Key
+    this.getApperClient = () => {
+      const { ApperClient } = window.ApperSDK;
+      return new ApperClient({
+        apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
+        apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
+      });
+    };
+    this.chatMessageTableName = 'chat_message_c';
+    this.channelTableName = 'channel_c';
   }
 
   async getAll() {
-    await this.delay(300);
-    return [...this.messages];
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "content_c" } },
+          { field: { Name: "channel_type_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "updated_at_c" } },
+          { field: { Name: "parent_id_c" } },
+          { field: { Name: "author_id_c" } },
+          { field: { Name: "project_id_c" } }
+        ],
+        orderBy: [{ fieldName: "created_at_c", sorttype: "ASC" }]
+      };
+      
+      const response = await apperClient.fetchRecords(this.chatMessageTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error fetching chat messages:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
+    }
   }
 
   async getById(id) {
-    await this.delay(200);
-    const message = this.messages.find(m => m.Id === parseInt(id));
-    if (!message) {
-      throw new Error("Message not found");
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "content_c" } },
+          { field: { Name: "channel_type_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "updated_at_c" } },
+          { field: { Name: "parent_id_c" } },
+          { field: { Name: "author_id_c" } },
+          { field: { Name: "project_id_c" } }
+        ]
+      };
+      
+      const response = await apperClient.getRecordById(this.chatMessageTableName, parseInt(id), params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error(`Error fetching chat message with ID ${id}:`, error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
     }
-    return { ...message };
   }
 
-async getChannelsByType(channelType = 'team') {
-    await this.delay(200);
-    return this.channels.filter(channel => channel.type === channelType);
-  }
-
-  async createChannel(channelData) {
-    await this.delay(300);
-    const newChannel = {
-      Id: this.nextChannelId++,
-      name: channelData.name,
-      type: channelData.type || 'team',
-      projectId: channelData.projectId || null,
-      description: channelData.description || '',
-      createdAt: new Date().toISOString(),
-      memberCount: 1
-    };
-    this.channels.push(newChannel);
-    return newChannel;
+  async getChannelsByType(channelType = 'team') {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "type_c" } },
+          { field: { Name: "project_id_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "member_count_c" } },
+          { field: { Name: "description_c" } }
+        ],
+        where: [
+          {
+            FieldName: "type_c",
+            Operator: "EqualTo",
+            Values: [channelType]
+          }
+        ]
+      };
+      
+      const response = await apperClient.fetchRecords(this.channelTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error fetching channels by type:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
+    }
   }
 
   async getMessagesByChannel(projectId = null, channelType = 'team') {
-    await this.delay(300);
-    const filteredMessages = this.messages
-      .filter(message => {
-        if (channelType === 'team') {
-          return message.channelType === 'team';
-        } else if (channelType === 'project' && projectId) {
-          return message.channelType === 'project' && message.projectId === parseInt(projectId);
+    try {
+      const apperClient = this.getApperClient();
+      const whereConditions = [
+        {
+          FieldName: "channel_type_c",
+          Operator: "EqualTo",
+          Values: [channelType]
         }
-        return false;
-      })
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-    // Add reactions and thread counts to messages
-    return filteredMessages.map(message => ({
-      ...message,
-      reactions: this.getMessageReactions(message.Id),
-      threadCount: this.getThreadCount(message.Id),
-      hasThread: this.hasThread(message.Id)
-    }));
+      ];
+      
+      if (channelType === 'project' && projectId) {
+        whereConditions.push({
+          FieldName: "project_id_c",
+          Operator: "EqualTo",
+          Values: [parseInt(projectId)]
+        });
+      }
+      
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "content_c" } },
+          { field: { Name: "channel_type_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "updated_at_c" } },
+          { field: { Name: "parent_id_c" } },
+          { field: { Name: "author_id_c" } },
+          { field: { Name: "project_id_c" } }
+        ],
+        where: whereConditions,
+        orderBy: [{ fieldName: "created_at_c", sorttype: "ASC" }]
+      };
+      
+      const response = await apperClient.fetchRecords(this.chatMessageTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error fetching messages by channel:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
+    }
   }
 
   async create(messageData) {
-    await this.delay(400);
-    const newId = this.messages.length > 0 ? Math.max(...this.messages.map(m => m.Id)) + 1 : 1;
-    const newMessage = {
-      Id: newId,
-      content: messageData.content,
-      authorId: parseInt(messageData.authorId),
-      projectId: messageData.projectId ? parseInt(messageData.projectId) : null,
-      channelType: messageData.channelType || 'team',
-      parentId: messageData.parentId || null,
-      mentions: this.extractMentions(messageData.content),
-      attachments: messageData.attachments || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    this.messages.push(newMessage);
-    return { ...newMessage };
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Name: messageData.Name || messageData.name || `Message - ${new Date().toLocaleString()}`,
+            content_c: messageData.content_c || messageData.content,
+            channel_type_c: messageData.channel_type_c || messageData.channelType || 'team',
+            created_at_c: new Date().toISOString(),
+            updated_at_c: new Date().toISOString(),
+            parent_id_c: messageData.parent_id_c || messageData.parentId || null,
+            author_id_c: messageData.author_id_c ? parseInt(messageData.author_id_c) : (messageData.authorId ? parseInt(messageData.authorId) : null),
+            project_id_c: messageData.project_id_c ? parseInt(messageData.project_id_c) : (messageData.projectId ? parseInt(messageData.projectId) : null)
+          }
+        ]
+      };
+      
+      const response = await apperClient.createRecord(this.chatMessageTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error creating chat message:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
   }
 
   async update(id, messageData) {
-    await this.delay(400);
-    const index = this.messages.findIndex(m => m.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Message not found");
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Id: parseInt(id),
+            Name: messageData.Name || messageData.name,
+            content_c: messageData.content_c || messageData.content,
+            updated_at_c: new Date().toISOString()
+          }
+        ]
+      };
+      
+      const response = await apperClient.updateRecord(this.chatMessageTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error updating chat message:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
     }
-    
-    this.messages[index] = {
-      ...this.messages[index],
-      content: messageData.content,
-      mentions: this.extractMentions(messageData.content),
-      updatedAt: new Date().toISOString()
-    };
-    
-    return { ...this.messages[index] };
   }
 
   async delete(id) {
-    await this.delay(300);
-    const index = this.messages.findIndex(m => m.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Message not found");
-    }
-    
-    this.messages.splice(index, 1);
-    return { success: true };
-  }
-
-  // Slack-like thread functionality
-  async getThreadReplies(parentId) {
-    await this.delay(200);
-    return this.messages
-      .filter(message => message.parentId === parseInt(parentId))
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-      .map(message => ({
-        ...message,
-        reactions: this.getMessageReactions(message.Id)
-      }));
-  }
-getThreadCount(messageId) {
-    return this.messages.filter(m => m.parentId === parseInt(messageId)).length;
-  }
-
-  hasThread(messageId) {
-    return this.getThreadCount(messageId) > 0;
-  }
-
-  async addMemberToChannel(channelId, memberId) {
-    await this.delay(200);
-    const channel = this.channels.find(c => c.Id === parseInt(channelId));
-    if (channel) {
-      channel.memberCount = (channel.memberCount || 0) + 1;
-      return true;
-    }
-    return false;
-  }
-// Emoji reactions
-  async addReaction(messageId, emoji, userId) {
-    await this.delay(200);
-    const reaction = {
-      Id: Date.now(),
-      messageId: parseInt(messageId),
-      emoji,
-      userId: parseInt(userId),
-      createdAt: new Date().toISOString()
-    };
-    this.reactions.push(reaction);
-    return reaction;
-  }
-
-  async removeReaction(messageId, emoji, userId) {
-    await this.delay(200);
-    const index = this.reactions.findIndex(r => 
-      r.messageId === parseInt(messageId) && 
-      r.emoji === emoji && 
-      r.userId === parseInt(userId)
-    );
-    if (index !== -1) {
-      this.reactions.splice(index, 1);
-    }
-    return { success: true };
-  }
-
-  getMessageReactions(messageId) {
-    const messageReactions = this.reactions.filter(r => r.messageId === parseInt(messageId));
-    const grouped = {};
-    
-    messageReactions.forEach(reaction => {
-      if (!grouped[reaction.emoji]) {
-        grouped[reaction.emoji] = {
-          emoji: reaction.emoji,
-          count: 0,
-          users: []
-        };
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        RecordIds: [parseInt(id)]
+      };
+      
+      const response = await apperClient.deleteRecord(this.chatMessageTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return false;
       }
-      grouped[reaction.emoji].count++;
-      grouped[reaction.emoji].users.push(reaction.userId);
-    });
-    
-    return Object.values(grouped);
+      
+      return true;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error deleting chat message:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return false;
+    }
   }
 
-  // Mention extraction
+  async createChannel(channelData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Name: channelData.Name || channelData.name,
+            type_c: channelData.type_c || channelData.type || 'team',
+            project_id_c: channelData.project_id_c ? parseInt(channelData.project_id_c) : (channelData.projectId ? parseInt(channelData.projectId) : null),
+            created_at_c: new Date().toISOString(),
+            member_count_c: channelData.member_count_c || channelData.memberCount || 1,
+            description_c: channelData.description_c || channelData.description || ''
+          }
+        ]
+      };
+      
+      const response = await apperClient.createRecord(this.channelTableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error creating channel:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
+  }
+  
+  // Utility methods for backward compatibility
+  async getThreadReplies(parentId) {
+    return this.getMessagesByChannel(null, 'thread', parentId);
+  }
+  
+  async addMemberToChannel(channelId, memberId) {
+    // This would require custom logic for channel membership
+    return true;
+  }
+  
   extractMentions(content) {
-    const mentionRegex = /@(\w+)/g;
+    const mentionRegex = /@([a-zA-Z0-9._-]+)/g;
     const mentions = [];
     let match;
     while ((match = mentionRegex.exec(content)) !== null) {
@@ -206,32 +318,12 @@ getThreadCount(messageId) {
     }
     return mentions;
   }
-
-  // Search functionality
+  
   async searchMessages(query, channelType = 'team', projectId = null) {
-    await this.delay(300);
     const messages = await this.getMessagesByChannel(projectId, channelType);
     return messages.filter(message => 
-      message.content.toLowerCase().includes(query.toLowerCase()) ||
-      (message.mentions && message.mentions.some(mention => 
-        mention.toLowerCase().includes(query.toLowerCase())
-      ))
+      message.content_c?.toLowerCase().includes(query.toLowerCase())
     );
-  }
-
-  // File attachment handling
-  async uploadFile(file, messageId) {
-    await this.delay(500);
-    const attachment = {
-      Id: Date.now(),
-      messageId: parseInt(messageId),
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      url: URL.createObjectURL(file), // In production, this would be a real URL
-      uploadedAt: new Date().toISOString()
-    };
-    return attachment;
   }
 }
 

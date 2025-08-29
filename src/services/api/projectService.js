@@ -1,342 +1,187 @@
-import projectsData from "@/services/mockData/projects.json";
-
 class ProjectService {
   constructor() {
-    this.projects = [...projectsData];
+    // Initialize ApperClient with Project ID and Public Key
+    this.getApperClient = () => {
+      const { ApperClient } = window.ApperSDK;
+      return new ApperClient({
+        apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
+        apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
+      });
+    };
+    this.tableName = 'project_c';
   }
 
   async getAll() {
-    await this.delay(300);
-    return [...this.projects];
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "description_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "deadline_c" } },
+          { field: { Name: "deliverables_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "start_date_c" } },
+          { field: { Name: "chat_enabled_c" } },
+          { field: { Name: "client_id_c" } }
+        ],
+        orderBy: [{ fieldName: "Name", sorttype: "ASC" }]
+      };
+      
+      const response = await apperClient.fetchRecords(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error fetching projects:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
+    }
   }
 
-async getById(id) {
-    // Validate project ID
-    if (!id || id === null || id === undefined || id === '') {
-      throw new Error("Valid project ID is required");
+  async getById(id) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "description_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "deadline_c" } },
+          { field: { Name: "deliverables_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "start_date_c" } },
+          { field: { Name: "chat_enabled_c" } },
+          { field: { Name: "client_id_c" } }
+        ]
+      };
+      
+      const response = await apperClient.getRecordById(this.tableName, parseInt(id), params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error(`Error fetching project with ID ${id}:`, error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
     }
-    
-    const numericId = parseInt(id);
-    if (isNaN(numericId) || numericId <= 0) {
-      throw new Error("Valid project ID is required");
-    }
-    
-    await this.delay(200);
-    const project = this.projects.find(p => p.Id === numericId);
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    return { ...project };
   }
 
-async create(projectData) {
-    await this.delay(400);
-    const newId = this.projects.length > 0 ? Math.max(...this.projects.map(p => p.Id)) + 1 : 1;
-    const newProject = {
-      Id: newId,
-      ...projectData,
-      clientId: parseInt(projectData.clientId),
-      status: projectData.status || "Planning",
-      startDate: projectData.startDate || "",
-      deadline: projectData.deadline || "",
-      deliverables: projectData.deliverables || "",
-      milestones: [],
-      chatEnabled: true,
-      createdAt: new Date().toISOString()
-    };
-    this.projects.push(newProject);
-    return { ...newProject };
+  async create(projectData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Name: projectData.Name || projectData.name,
+            description_c: projectData.description_c || projectData.description,
+            status_c: projectData.status_c || projectData.status || "Planning",
+            deadline_c: projectData.deadline_c || projectData.deadline,
+            deliverables_c: projectData.deliverables_c || projectData.deliverables,
+            created_at_c: new Date().toISOString(),
+            start_date_c: projectData.start_date_c || projectData.startDate,
+            chat_enabled_c: projectData.chat_enabled_c !== undefined ? projectData.chat_enabled_c : (projectData.chatEnabled !== undefined ? projectData.chatEnabled : true),
+            client_id_c: parseInt(projectData.client_id_c || projectData.clientId)
+          }
+        ]
+      };
+      
+      const response = await apperClient.createRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error creating project:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
   }
 
-async update(id, projectData) {
-    await this.delay(400);
-    const index = this.projects.findIndex(p => p.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Project not found");
+  async update(id, projectData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Id: parseInt(id),
+            Name: projectData.Name || projectData.name,
+            description_c: projectData.description_c || projectData.description,
+            status_c: projectData.status_c || projectData.status,
+            deadline_c: projectData.deadline_c || projectData.deadline,
+            deliverables_c: projectData.deliverables_c || projectData.deliverables,
+            start_date_c: projectData.start_date_c || projectData.startDate,
+            chat_enabled_c: projectData.chat_enabled_c !== undefined ? projectData.chat_enabled_c : (projectData.chatEnabled !== undefined ? projectData.chatEnabled : undefined),
+            client_id_c: projectData.client_id_c ? parseInt(projectData.client_id_c) : (projectData.clientId ? parseInt(projectData.clientId) : undefined)
+          }
+        ]
+      };
+      
+      const response = await apperClient.updateRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error updating project:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
     }
-    
-    this.projects[index] = {
-      ...this.projects[index],
-      ...projectData,
-      clientId: parseInt(projectData.clientId),
-      status: projectData.status || this.projects[index].status,
-      startDate: projectData.startDate || this.projects[index].startDate,
-      deadline: projectData.deadline || this.projects[index].deadline,
-      deliverables: projectData.deliverables || this.projects[index].deliverables,
-      chatEnabled: projectData.chatEnabled !== undefined ? projectData.chatEnabled : this.projects[index].chatEnabled
-    };
-    
-    return { ...this.projects[index] };
   }
 
   async delete(id) {
-    await this.delay(300);
-    const index = this.projects.findIndex(p => p.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Project not found");
-    }
-    
-    this.projects.splice(index, 1);
-    return true;
-  }
-
-  // Milestone operations
-  async getMilestonesByProjectId(projectId) {
-    await this.delay(200);
-    const project = this.projects.find(p => p.Id === parseInt(projectId));
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    return project.milestones ? [...project.milestones] : [];
-  }
-
-  async createMilestone(projectId, milestoneData) {
-    await this.delay(300);
-    const projectIndex = this.projects.findIndex(p => p.Id === parseInt(projectId));
-    if (projectIndex === -1) {
-      throw new Error("Project not found");
-    }
-
-    if (!this.projects[projectIndex].milestones) {
-      this.projects[projectIndex].milestones = [];
-    }
-
-const allMilestones = this.projects.flatMap(p => p.milestones || []);
-    const newId = allMilestones.length > 0 ? Math.max(...allMilestones.map(m => m.Id)) + 1 : 1;
-    
-    const newMilestone = {
-      Id: newId,
-      projectId: parseInt(projectId),
-      title: milestoneData.title,
-      description: milestoneData.description || "",
-      startDate: milestoneData.startDate || "",
-      dueDate: milestoneData.dueDate,
-      isCompleted: false,
-      completedDate: null,
-      createdAt: new Date().toISOString()
-    };
-
-    this.projects[projectIndex].milestones.push(newMilestone);
-    return { ...newMilestone };
-  }
-
-async updateMilestone(milestoneId, milestoneData) {
-    await this.delay(300);
-    
-    for (let project of this.projects) {
-      if (project.milestones) {
-        const milestoneIndex = project.milestones.findIndex(m => m.Id === parseInt(milestoneId));
-        if (milestoneIndex !== -1) {
-          project.milestones[milestoneIndex] = {
-            ...project.milestones[milestoneIndex],
-            ...milestoneData,
-            startDate: milestoneData.startDate || project.milestones[milestoneIndex].startDate
-          };
-          return { ...project.milestones[milestoneIndex] };
-        }
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        RecordIds: [parseInt(id)]
+      };
+      
+      const response = await apperClient.deleteRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return false;
       }
-    }
-    
-    throw new Error("Milestone not found");
-  }
-
-  async deleteMilestone(milestoneId) {
-    await this.delay(300);
-    
-    for (let project of this.projects) {
-      if (project.milestones) {
-        const milestoneIndex = project.milestones.findIndex(m => m.Id === parseInt(milestoneId));
-        if (milestoneIndex !== -1) {
-          project.milestones.splice(milestoneIndex, 1);
-          return true;
-        }
+      
+      return true;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error deleting project:", error?.response?.data?.message);
+      } else {
+        console.error(error);
       }
+      return false;
     }
-    
-    throw new Error("Milestone not found");
-  }
-
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-// Wiki document operations
-  async getWikiDocuments(projectId) {
-    await this.delay(200);
-    const project = this.projects.find(p => p.Id === parseInt(projectId));
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    return project.wikiDocuments ? [...project.wikiDocuments] : [];
-  }
-
-  async createWikiDocument(projectId, docData) {
-    await this.delay(300);
-    const projectIndex = this.projects.findIndex(p => p.Id === parseInt(projectId));
-    if (projectIndex === -1) {
-      throw new Error("Project not found");
-    }
-
-    if (!this.projects[projectIndex].wikiDocuments) {
-      this.projects[projectIndex].wikiDocuments = [];
-    }
-
-    const allDocs = this.projects.flatMap(p => p.wikiDocuments || []);
-    const newId = allDocs.length > 0 ? Math.max(...allDocs.map(d => d.Id)) + 1 : 1;
-    
-    const newDoc = {
-      Id: newId,
-      projectId: parseInt(projectId),
-      title: docData.title,
-      type: docData.type || 'documentation',
-      content: docData.content || '',
-      tags: docData.tags || [],
-      authorId: docData.authorId,
-      versions: [{
-        id: 1,
-        content: docData.content || '',
-        authorId: docData.authorId,
-        createdAt: new Date().toISOString(),
-        comment: 'Initial version'
-      }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    this.projects[projectIndex].wikiDocuments.push(newDoc);
-    return { ...newDoc };
-  }
-
-  async updateWikiDocument(docId, docData) {
-    await this.delay(300);
-    
-    for (let project of this.projects) {
-      if (project.wikiDocuments) {
-        const docIndex = project.wikiDocuments.findIndex(d => d.Id === parseInt(docId));
-        if (docIndex !== -1) {
-          const currentDoc = project.wikiDocuments[docIndex];
-          
-          // Create new version if content changed
-          const newVersion = {
-            id: (currentDoc.versions?.length || 0) + 1,
-            content: docData.content || currentDoc.content,
-            authorId: docData.authorId || currentDoc.authorId,
-            createdAt: new Date().toISOString(),
-            comment: 'Updated content'
-          };
-
-          project.wikiDocuments[docIndex] = {
-            ...currentDoc,
-            ...docData,
-            versions: [...(currentDoc.versions || []), newVersion],
-            updatedAt: new Date().toISOString()
-          };
-          return { ...project.wikiDocuments[docIndex] };
-        }
-      }
-    }
-    
-    throw new Error("Wiki document not found");
-  }
-
-  async deleteWikiDocument(docId) {
-    await this.delay(300);
-    
-    for (let project of this.projects) {
-      if (project.wikiDocuments) {
-        const docIndex = project.wikiDocuments.findIndex(d => d.Id === parseInt(docId));
-        if (docIndex !== -1) {
-          project.wikiDocuments.splice(docIndex, 1);
-          return true;
-        }
-      }
-    }
-    
-    throw new Error("Wiki document not found");
-  }
-
-  // Calendar event operations
-  async getCalendarEvents(projectId) {
-    await this.delay(200);
-    const project = this.projects.find(p => p.Id === parseInt(projectId));
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    return project.calendarEvents ? [...project.calendarEvents] : [];
-  }
-
-  async createCalendarEvent(projectId, eventData) {
-    await this.delay(300);
-    const projectIndex = this.projects.findIndex(p => p.Id === parseInt(projectId));
-    if (projectIndex === -1) {
-      throw new Error("Project not found");
-    }
-
-    if (!this.projects[projectIndex].calendarEvents) {
-      this.projects[projectIndex].calendarEvents = [];
-    }
-
-    const allEvents = this.projects.flatMap(p => p.calendarEvents || []);
-    const newId = allEvents.length > 0 ? Math.max(...allEvents.map(e => e.Id)) + 1 : 1;
-    
-    const newEvent = {
-      Id: newId,
-      projectId: parseInt(projectId),
-      title: eventData.title,
-      description: eventData.description || '',
-      type: eventData.type || 'meeting',
-      startDate: eventData.startDate,
-      endDate: eventData.endDate,
-      location: eventData.location || '',
-      isAllDay: eventData.isAllDay || false,
-      invitees: eventData.invitees || [],
-      createdBy: eventData.createdBy,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    this.projects[projectIndex].calendarEvents.push(newEvent);
-    return { ...newEvent };
-  }
-
-  async updateCalendarEvent(eventId, eventData) {
-    await this.delay(300);
-    
-    for (let project of this.projects) {
-      if (project.calendarEvents) {
-        const eventIndex = project.calendarEvents.findIndex(e => e.Id === parseInt(eventId));
-        if (eventIndex !== -1) {
-          project.calendarEvents[eventIndex] = {
-            ...project.calendarEvents[eventIndex],
-            ...eventData,
-            updatedAt: new Date().toISOString()
-          };
-          return { ...project.calendarEvents[eventIndex] };
-        }
-      }
-    }
-    
-    throw new Error("Calendar event not found");
-  }
-
-  async deleteCalendarEvent(eventId) {
-    await this.delay(300);
-    
-    for (let project of this.projects) {
-      if (project.calendarEvents) {
-        const eventIndex = project.calendarEvents.findIndex(e => e.Id === parseInt(eventId));
-        if (eventIndex !== -1) {
-          project.calendarEvents.splice(eventIndex, 1);
-          return true;
-        }
-      }
-    }
-    
-    throw new Error("Calendar event not found");
-  }
-
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
+
+export default new ProjectService();
 
 export default new ProjectService();

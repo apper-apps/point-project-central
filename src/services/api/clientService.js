@@ -1,79 +1,184 @@
-import clientsData from "@/services/mockData/clients.json";
-
 class ClientService {
   constructor() {
-this.clients = Array.isArray(clientsData) ? [...clientsData] : [];
+    // Initialize ApperClient with Project ID and Public Key
+    this.getApperClient = () => {
+      const { ApperClient } = window.ApperSDK;
+      return new ApperClient({
+        apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
+        apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
+      });
+    };
+    this.tableName = 'client_c';
   }
 
   async getAll() {
-    await this.delay(300);
-    return [...this.clients];
-  }
-
-async getById(id) {
-    if (!id) {
-      throw new Error("Client ID is required");
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "company_c" } },
+          { field: { Name: "email_c" } },
+          { field: { Name: "phone_c" } },
+          { field: { Name: "website_c" } },
+          { field: { Name: "address_c" } },
+          { field: { Name: "industry_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "created_at_c" } }
+        ],
+        orderBy: [{ fieldName: "Name", sorttype: "ASC" }]
+      };
+      
+      const response = await apperClient.fetchRecords(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error fetching clients:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
     }
-    
-    await this.delay(200);
-    const client = this.clients.find(c => c && c.Id === parseInt(id));
-    if (!client) {
-      throw new Error("Client not found");
+  }
+
+  async getById(id) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "company_c" } },
+          { field: { Name: "email_c" } },
+          { field: { Name: "phone_c" } },
+          { field: { Name: "website_c" } },
+          { field: { Name: "address_c" } },
+          { field: { Name: "industry_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "created_at_c" } }
+        ]
+      };
+      
+      const response = await apperClient.getRecordById(this.tableName, parseInt(id), params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error(`Error fetching client with ID ${id}:`, error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
     }
-    
-    return { ...client };
   }
 
-  async getProjectsByClientId(clientId) {
-    await this.delay(300);
-    // Import projectService to get projects for this client
-    const projectService = (await import("./projectService.js")).default;
-    const allProjects = await projectService.getAll();
-    return allProjects.filter(project => project.clientId === parseInt(clientId));
-  }
-
-async create(clientData) {
-    await this.delay(400);
-    const newId = this.clients.length > 0 ? Math.max(...this.clients.map(c => c.Id)) + 1 : 1;
-    const newClient = {
-      Id: newId,
-      ...clientData,
-      status: clientData.status || "Active",
-      createdAt: new Date().toISOString()
-    };
-    this.clients.push(newClient);
-    return { ...newClient };
-  }
-
-async update(id, clientData) {
-    await this.delay(400);
-    const index = this.clients.findIndex(c => c.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Client not found");
+  async create(clientData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Name: clientData.Name || clientData.name,
+            company_c: clientData.company_c || clientData.company,
+            email_c: clientData.email_c || clientData.email,
+            phone_c: clientData.phone_c || clientData.phone,
+            website_c: clientData.website_c || clientData.website,
+            address_c: clientData.address_c || clientData.address,
+            industry_c: clientData.industry_c || clientData.industry,
+            status_c: clientData.status_c || clientData.status || "Active",
+            created_at_c: new Date().toISOString()
+          }
+        ]
+      };
+      
+      const response = await apperClient.createRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error creating client:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
     }
-    
-    this.clients[index] = {
-      ...this.clients[index],
-      ...clientData,
-      status: clientData.status || this.clients[index].status || "Active"
-    };
-    
-    return { ...this.clients[index] };
+  }
+
+  async update(id, clientData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Id: parseInt(id),
+            Name: clientData.Name || clientData.name,
+            company_c: clientData.company_c || clientData.company,
+            email_c: clientData.email_c || clientData.email,
+            phone_c: clientData.phone_c || clientData.phone,
+            website_c: clientData.website_c || clientData.website,
+            address_c: clientData.address_c || clientData.address,
+            industry_c: clientData.industry_c || clientData.industry,
+            status_c: clientData.status_c || clientData.status
+          }
+        ]
+      };
+      
+      const response = await apperClient.updateRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error updating client:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
   }
 
   async delete(id) {
-    await this.delay(300);
-    const index = this.clients.findIndex(c => c.Id === parseInt(id));
-    if (index === -1) {
-      throw new Error("Client not found");
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        RecordIds: [parseInt(id)]
+      };
+      
+      const response = await apperClient.deleteRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error deleting client:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return false;
     }
-    
-    this.clients.splice(index, 1);
-    return true;
-  }
-
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 

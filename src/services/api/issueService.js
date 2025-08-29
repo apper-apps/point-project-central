@@ -1,246 +1,317 @@
-import mockIssues from '@/services/mockData/issues.json';
-import mockComments from '@/services/mockData/issueComments.json';
+class IssueService {
+  constructor() {
+    // Initialize ApperClient with Project ID and Public Key
+    this.getApperClient = () => {
+      const { ApperClient } = window.ApperSDK;
+      return new ApperClient({
+        apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
+        apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
+      });
+    };
+    this.tableName = 'issue_c';
+  }
 
-let issues = [...mockIssues];
-let comments = [...mockComments];
-let nextIssueId = Math.max(...mockIssues.map(issue => issue.Id)) + 1;
-let nextCommentId = Math.max(...mockComments.map(comment => comment.Id)) + 1;
+  async getAll() {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "title_c" } },
+          { field: { Name: "type_c" } },
+          { field: { Name: "description_c" } },
+          { field: { Name: "priority_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "reporter_c" } },
+          { field: { Name: "assignee_c" } },
+          { field: { Name: "environment_c" } },
+          { field: { Name: "due_date_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "updated_at_c" } },
+          { field: { Name: "project_id_c" } }
+        ],
+        orderBy: [{ fieldName: "created_at_c", sorttype: "DESC" }]
+      };
+      
+      const response = await apperClient.fetchRecords(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error fetching issues:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
+    }
+  }
 
-// Issue CRUD operations
-export const getAll = () => {
-  return [...issues];
-};
+  async getById(id) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "title_c" } },
+          { field: { Name: "type_c" } },
+          { field: { Name: "description_c" } },
+          { field: { Name: "priority_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "reporter_c" } },
+          { field: { Name: "assignee_c" } },
+          { field: { Name: "environment_c" } },
+          { field: { Name: "due_date_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "updated_at_c" } },
+          { field: { Name: "project_id_c" } }
+        ]
+      };
+      
+      const response = await apperClient.getRecordById(this.tableName, parseInt(id), params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error(`Error fetching issue with ID ${id}:`, error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
+  }
 
-export const getById = (id) => {
-  const numericId = parseInt(id);
-  if (isNaN(numericId)) {
-    throw new Error('Invalid ID format');
+  async create(issueData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Name: issueData.Name || issueData.name || issueData.title_c || issueData.title,
+            title_c: issueData.title_c || issueData.title,
+            type_c: issueData.type_c || issueData.type,
+            description_c: issueData.description_c || issueData.description,
+            priority_c: issueData.priority_c || issueData.priority,
+            status_c: issueData.status_c || issueData.status,
+            reporter_c: issueData.reporter_c || issueData.reporter,
+            assignee_c: issueData.assignee_c || issueData.assignee,
+            environment_c: issueData.environment_c || issueData.environment,
+            due_date_c: issueData.due_date_c || issueData.dueDate,
+            created_at_c: new Date().toISOString(),
+            updated_at_c: new Date().toISOString(),
+            project_id_c: issueData.project_id_c ? parseInt(issueData.project_id_c) : (issueData.projectId ? parseInt(issueData.projectId) : null)
+          }
+        ]
+      };
+      
+      const response = await apperClient.createRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error creating issue:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
   }
-  return issues.find(issue => issue.Id === numericId) || null;
-};
 
-export const create = (issueData) => {
-  const newIssue = {
-    ...issueData,
-    Id: nextIssueId++,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    attachments: issueData.attachments || [],
-    tags: issueData.tags || []
-  };
-  issues.push(newIssue);
-  return newIssue;
-};
+  async update(id, issueData) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        records: [
+          {
+            Id: parseInt(id),
+            Name: issueData.Name || issueData.name || issueData.title_c || issueData.title,
+            title_c: issueData.title_c || issueData.title,
+            type_c: issueData.type_c || issueData.type,
+            description_c: issueData.description_c || issueData.description,
+            priority_c: issueData.priority_c || issueData.priority,
+            status_c: issueData.status_c || issueData.status,
+            reporter_c: issueData.reporter_c || issueData.reporter,
+            assignee_c: issueData.assignee_c || issueData.assignee,
+            environment_c: issueData.environment_c || issueData.environment,
+            due_date_c: issueData.due_date_c || issueData.dueDate,
+            updated_at_c: new Date().toISOString(),
+            project_id_c: issueData.project_id_c ? parseInt(issueData.project_id_c) : (issueData.projectId ? parseInt(issueData.projectId) : undefined)
+          }
+        ]
+      };
+      
+      const response = await apperClient.updateRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+      
+      return response.results?.[0]?.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error updating issue:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
+  }
 
-export const update = (id, updateData) => {
-  const numericId = parseInt(id);
-  if (isNaN(numericId)) {
-    throw new Error('Invalid ID format');
+  async remove(id) {
+    try {
+      const apperClient = this.getApperClient();
+      const params = {
+        RecordIds: [parseInt(id)]
+      };
+      
+      const response = await apperClient.deleteRecord(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error deleting issue:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return false;
+    }
   }
-  
-  const index = issues.findIndex(issue => issue.Id === numericId);
-  if (index === -1) {
-    throw new Error('Issue not found');
-  }
-  
-  issues[index] = {
-    ...issues[index],
-    ...updateData,
-    Id: numericId,
-    updatedAt: new Date().toISOString()
-  };
-  
-  return issues[index];
-};
 
-export const remove = (id) => {
-  const numericId = parseInt(id);
-  if (isNaN(numericId)) {
-    throw new Error('Invalid ID format');
+  async searchIssues(query, filters = {}) {
+    try {
+      const apperClient = this.getApperClient();
+      const whereConditions = [];
+      
+      // Text search
+      if (query && query.trim()) {
+        whereConditions.push({
+          FieldName: "title_c",
+          Operator: "Contains",
+          Values: [query.trim()]
+        });
+      }
+      
+      // Filter by type
+      if (filters.type && filters.type !== 'all') {
+        whereConditions.push({
+          FieldName: "type_c",
+          Operator: "EqualTo",
+          Values: [filters.type]
+        });
+      }
+      
+      // Filter by status
+      if (filters.status && filters.status !== 'all') {
+        whereConditions.push({
+          FieldName: "status_c",
+          Operator: "EqualTo",
+          Values: [filters.status]
+        });
+      }
+      
+      // Filter by priority
+      if (filters.priority && filters.priority !== 'all') {
+        whereConditions.push({
+          FieldName: "priority_c",
+          Operator: "EqualTo",
+          Values: [filters.priority]
+        });
+      }
+      
+      const params = {
+        fields: [
+          { field: { Name: "Name" } },
+          { field: { Name: "title_c" } },
+          { field: { Name: "type_c" } },
+          { field: { Name: "description_c" } },
+          { field: { Name: "priority_c" } },
+          { field: { Name: "status_c" } },
+          { field: { Name: "created_at_c" } },
+          { field: { Name: "project_id_c" } }
+        ],
+        where: whereConditions
+      };
+      
+      const response = await apperClient.fetchRecords(this.tableName, params);
+      
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        console.error("Error searching issues:", error?.response?.data?.message);
+      } else {
+        console.error(error);
+      }
+      return [];
+    }
   }
   
-  const index = issues.findIndex(issue => issue.Id === numericId);
-  if (index === -1) {
-    throw new Error('Issue not found');
-  }
-  
-  issues.splice(index, 1);
-  // Also remove associated comments
-  comments = comments.filter(comment => comment.issueId !== numericId);
-  return true;
-};
+  // Static data for dropdowns (these remain the same)
+  issueTypes = [
+    { value: 'Bug', label: 'Bug' },
+    { value: 'Feature Request', label: 'Feature Request' },
+    { value: 'Improvement', label: 'Improvement' },
+    { value: 'Task', label: 'Task' }
+  ];
 
-// Comment operations
-export const getCommentsByIssueId = (issueId) => {
-  const numericId = parseInt(issueId);
-  if (isNaN(numericId)) {
-    throw new Error('Invalid issue ID format');
-  }
-  return comments.filter(comment => comment.issueId === numericId);
-};
+  priorityLevels = [
+    { value: 'Low', label: 'Low' },
+    { value: 'Medium', label: 'Medium' },
+    { value: 'High', label: 'High' },
+    { value: 'Highest', label: 'Highest' }
+  ];
 
-export const createComment = (commentData) => {
-  const newComment = {
-    ...commentData,
-    Id: nextCommentId++,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    mentions: extractMentions(commentData.content)
-  };
-  comments.push(newComment);
-  return newComment;
-};
+  statusWorkflow = [
+    { value: 'To Do', label: 'To Do' },
+    { value: 'In Progress', label: 'In Progress' },
+    { value: 'In Review', label: 'In Review' },
+    { value: 'Done', label: 'Done' }
+  ];
 
-export const updateComment = (id, updateData) => {
-  const numericId = parseInt(id);
-  if (isNaN(numericId)) {
-    throw new Error('Invalid ID format');
-  }
-  
-  const index = comments.findIndex(comment => comment.Id === numericId);
-  if (index === -1) {
-    throw new Error('Comment not found');
-  }
-  
-  comments[index] = {
-    ...comments[index],
-    ...updateData,
-    Id: numericId,
-    updatedAt: new Date().toISOString(),
-    mentions: extractMentions(updateData.content || comments[index].content)
-  };
-  
-  return comments[index];
-};
+  environments = [
+    { value: 'Development', label: 'Development' },
+    { value: 'Staging', label: 'Staging' },
+    { value: 'Production', label: 'Production' }
+  ];
+}
 
-export const deleteComment = (id) => {
-  const numericId = parseInt(id);
-  if (isNaN(numericId)) {
-    throw new Error('Invalid ID format');
-  }
-  
-  const index = comments.findIndex(comment => comment.Id === numericId);
-  if (index === -1) {
-    throw new Error('Comment not found');
-  }
-  
-  comments.splice(index, 1);
-  return true;
-};
+const issueServiceInstance = new IssueService();
 
-// Search and filter operations
-export const searchIssues = (query, filters = {}) => {
-  let filteredIssues = [...issues];
-  
-  // Text search
-  if (query && query.trim()) {
-    const searchTerm = query.toLowerCase().trim();
-    filteredIssues = filteredIssues.filter(issue =>
-      issue.title.toLowerCase().includes(searchTerm) ||
-      issue.description.toLowerCase().includes(searchTerm) ||
-      issue.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-    );
-  }
-  
-  // Filter by type
-  if (filters.type && filters.type !== 'all') {
-    filteredIssues = filteredIssues.filter(issue => issue.type === filters.type);
-  }
-  
-  // Filter by status
-  if (filters.status && filters.status !== 'all') {
-    filteredIssues = filteredIssues.filter(issue => issue.status === filters.status);
-  }
-  
-  // Filter by priority
-  if (filters.priority && filters.priority !== 'all') {
-    filteredIssues = filteredIssues.filter(issue => issue.priority === filters.priority);
-  }
-  
-  // Filter by assignee
-  if (filters.assignee && filters.assignee !== 'all') {
-    filteredIssues = filteredIssues.filter(issue => issue.assignee === filters.assignee);
-  }
-  
-  // Filter by environment
-  if (filters.environment && filters.environment !== 'all') {
-    filteredIssues = filteredIssues.filter(issue => issue.environment === filters.environment);
-  }
-  
-  return filteredIssues;
-};
+// Export individual methods for backward compatibility
+export const getAll = () => issueServiceInstance.getAll();
+export const getById = (id) => issueServiceInstance.getById(id);
+export const create = (issueData) => issueServiceInstance.create(issueData);
+export const update = (id, issueData) => issueServiceInstance.update(id, issueData);
+export const remove = (id) => issueServiceInstance.remove(id);
+export const searchIssues = (query, filters) => issueServiceInstance.searchIssues(query, filters);
 
-// Utility functions
-const extractMentions = (content) => {
-  const mentionRegex = /@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
-  const mentions = [];
-  let match;
-  
-  while ((match = mentionRegex.exec(content)) !== null) {
-    mentions.push(match[1]);
-  }
-  
-  return mentions;
-};
+export const issueTypes = issueServiceInstance.issueTypes;
+export const priorityLevels = issueServiceInstance.priorityLevels;
+export const statusWorkflow = issueServiceInstance.statusWorkflow;
+export const environments = issueServiceInstance.environments;
 
-// Issue types configuration
-export const issueTypes = [
-  {
-    id: 'Bug',
-    name: 'Bug',
-    icon: 'Bug',
-    color: 'text-red-600',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200'
-  },
-  {
-    id: 'Task',
-    name: 'Task',
-    icon: 'CheckSquare',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200'
-  },
-  {
-    id: 'Feature Request',
-    name: 'Feature Request',
-    icon: 'Lightbulb',
-    color: 'text-green-600',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200'
-  },
-  {
-    id: 'Improvement',
-    name: 'Improvement',
-    icon: 'TrendingUp',
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200'
-  }
-];
-
-// Priority levels
-export const priorityLevels = ['Highest', 'High', 'Medium', 'Low', 'Lowest'];
-
-// Status workflow
-export const statusWorkflow = ['To Do', 'In Progress', 'In Review', 'Done'];
-
-// Environment options
-export const environments = ['Production', 'Staging', 'Development'];
-
-export default {
-  getAll,
-  getById,
-  create,
-  update,
-  remove,
-  getCommentsByIssueId,
-  createComment,
-  updateComment,
-  deleteComment,
-  searchIssues,
-  issueTypes,
-  priorityLevels,
-  statusWorkflow,
-  environments
-};
+export default issueServiceInstance;
